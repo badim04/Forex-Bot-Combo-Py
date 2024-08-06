@@ -1,0 +1,20 @@
+Working Bots 2024 Aug
+
+Merge models
+
+Support resistance python, use martingale with it
+
+ML classification 55 to 65% accuracy for direction, use 4hrs and gbpusd
+
+Hedging, straight line hedging for news or wayy more than 10 trades with 1:3 R:R
+
+Hedging like budak but as it is goin one way if the lot is the same for the open trades, the closing ones lot would increase to take the difference but if it starts changing direction then close at a smaller loss or break even
+
+BB bot
+
+Arbitrage
+Casino Martingale
+Betting Martingale 2 odds
+
+
+

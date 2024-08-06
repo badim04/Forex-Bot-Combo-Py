@@ -1,0 +1,57 @@
+Okay I need a Python bot that takes trade on mt5 using support resistance and also a backtester function for this using backtest library
+
+Okay so this is how the bot would work
+1. It would use the zigzag indicator
+2. Okay so it would use the zigzag indicator to find support and resistance levels
+3. To get the support levels, it would check the high points of the zigzag in the last 200 bars and any points that are at most 10 pips from each other, with at least 3 points like that, all form one support zone with the average of the points being one support line
+The vice versa for the resistance line below checking the low points of the zigzag
+
+4. Take a buy trade when the price hits the resistance line or zone and a sell when the price hits the support line or zone
+
+5. Always clear the lines or zones and recalculate after each trade
+
+
+
+Can use the code below to start
+
+import pandas as pd
+import yfinance as yf
+from backtesting import Backtest, Strategy
+
+# Fetch historical data
+ticker = "GBPUSD=X"
+data = yf.download(ticker, start="2020-01-01", end="2024-06-06")
+
+import MetaTrader5 as mt5
+import time
+from datetime import datetime, timedelta
+
+# Initialize the MetaTrader 5 platform
+if not mt5.initialize():
+    print("initialize() failed")
+    mt5.shutdown()
+    exit()
+
+login = 48438229  # Your account number
+password = "Mq3p8!tJ"  # Your account password
+server = "HFMarketsGlobal-Demo"  # Your broker's server
+
+# Login to the trading account
+if not mt5.login(login, password, server):
+    print(f"Failed to connect to account {login}")
+    mt5.shutdown()
+    exit()
+
+# Ensure AutoTrading is enabled
+account_info = mt5.account_info()
+if account_info is None:
+    print("Failed to get account info, AutoTrading might be disabled")
+    mt5.shutdown()
+    exit()
+elif not account_info.trade_allowed:
+    print("AutoTrading is disabled, please enable it in the MetaTrader 5 platform")
+    mt5.shutdown()
+    exit()
+
+# List of symbols
+symbols = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]

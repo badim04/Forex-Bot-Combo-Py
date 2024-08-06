@@ -1,0 +1,229 @@
+import MetaTrader5 as mt5
+import time
+from datetime import datetime, timedelta
+
+# Initialize the MetaTrader 5 platform
+if not mt5.initialize():
+    print("initialize() failed")
+    mt5.shutdown()
+    exit()
+
+login = 48438229  # Your account number
+password = "Mq3p8!tJ"  # Your account password
+server = "HFMarketsGlobal-Demo"  # Your broker's server
+
+# Login to the trading account
+if not mt5.login(login, password, server):
+    print(f"Failed to connect to account {login}")
+    mt5.shutdown()
+    exit()
+
+# Ensure AutoTrading is enabled
+account_info = mt5.account_info()
+if account_info is None:
+    print("Failed to get account info, AutoTrading might be disabled")
+    mt5.shutdown()
+    exit()
+elif not account_info.trade_allowed:
+    print("AutoTrading is disabled, please enable it in the MetaTrader 5 platform")
+    mt5.shutdown()
+    exit()
+
+# List of symbols
+symbols = ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "USDJPY", "XAUUSD"]
+
+# Set the specific dates and times to place the orders
+scheduled_times = [
+    datetime(2024, 6, 28, 16, 1, 0),  # First timer
+    datetime(2024, 6, 28, 14, 28, 0),  # Second timer
+    datetime(2024, 6, 28, 15, 29, 0)   # Third timer
+]
+
+# Define the lot size and pip parameters
+lot = 1.0
+pip_dict = {"EURUSD": 0.0001, "GBPUSD": 0.0001, "AUDUSD": 0.0001, "GBPJPY": 0.01, "USDJPY": 0.01, "XAUUSD": 0.1}  # Different pip values for different symbols
+stop_loss_pips = 10
+trigger_pips = 20
+trailing_pips = 15
+stop_pips = 10
+
+# Function to ensure the symbol is available
+def ensure_symbol(symbol):
+    symbol_info = mt5.symbol_info(symbol)
+    if symbol_info is None:
+        print(f"Symbol {symbol} not found, cannot call order_check()")
+        return False
+    elif not symbol_info.visible:
+        print(f"Symbol {symbol} is not visible, trying to switch on")
+        if not mt5.symbol_select(symbol, True):
+            print(f"Symbol {symbol} is not available for trading")
+            return False
+    return True
+
+# Function to place the orders
+def place_orders(symbol):
+    if not ensure_symbol(symbol):
+        return
+
+    pip = pip_dict[symbol]
+    symbol_tick = mt5.symbol_info_tick(symbol)
+    ask_price = symbol_tick.ask
+    bid_price = symbol_tick.bid
+
+    stop_loss_price_buy = ask_price - stop_loss_pips * pip
+    stop_price_buy = ask_price + stop_pips * pip
+
+    stop_loss_price_sell = bid_price + stop_loss_pips * pip
+    stop_price_sell = bid_price - stop_pips * pip
+
+    buy_stop_request = {
+        "action": mt5.TRADE_ACTION_PENDING,
+        "symbol": symbol,
+        "volume": lot,
+        "type": mt5.ORDER_TYPE_BUY_STOP,
+        "price": stop_price_buy,
+        "sl": stop_loss_price_buy,
+        "deviation": 10,
+        "magic": 234000,
+        "comment": "python script buy stop",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": mt5.ORDER_FILLING_FOK,  # Using FOK filling mode
+    }
+
+    sell_stop_request = {
+        "action": mt5.TRADE_ACTION_PENDING,
+        "symbol": symbol,
+        "volume": lot,
+        "type": mt5.ORDER_TYPE_SELL_STOP,
+        "price": stop_price_sell,
+        "sl": stop_loss_price_sell,
+        "deviation": 10,
+        "magic": 234000,
+        "comment": "python script sell stop",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": mt5.ORDER_FILLING_FOK,  # Using FOK filling mode
+    }
+
+    result_buy_stop = mt5.order_send(buy_stop_request)
+    if result_buy_stop.retcode != mt5.TRADE_RETCODE_DONE:
+        print(f"Buy stop order for {symbol} failed, retcode={result_buy_stop.retcode}")
+        print(f"Error: {result_buy_stop}")
+    else:
+        print(f"Buy stop order for {symbol} placed successfully, ticket={result_buy_stop.order}")
+
+    result_sell_stop = mt5.order_send(sell_stop_request)
+    if result_sell_stop.retcode != mt5.TRADE_RETCODE_DONE:
+        print(f"Sell stop order for {symbol} failed, retcode={result_sell_stop.retcode}")
+        print(f"Error: {result_sell_stop}")
+    else:
+        print(f"Sell stop order for {symbol} placed successfully, ticket={result_sell_stop.order}")
+
+# Function to close pending orders not executed within 3 minutes
+def close_pending_orders(symbol, after_time):
+    close_time = after_time + timedelta(minutes=50)
+    while datetime.now() < close_time:
+        time.sleep(1)
+
+    orders = mt5.orders_get(symbol=symbol)
+    if orders is None:
+        print(f"No orders to close for {symbol}.")
+        return
+
+    for order in orders:
+        if order.type in [mt5.ORDER_TYPE_BUY_STOP, mt5.ORDER_TYPE_SELL_STOP]:
+            close_request = {
+                "action": mt5.TRADE_ACTION_REMOVE,
+                "order": order.ticket,
+                "symbol": order.symbol,
+                "volume": order.volume_current,
+                "magic": order.magic,
+                "comment": "python script cancel pending",
+            }
+            result = mt5.order_send(close_request)
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                print(f"Failed to close order {order.ticket} for {symbol}, retcode={result.retcode}")
+            else:
+                print(f"Order {order.ticket} for {symbol} closed successfully.")
+
+# Function to display the countdown timer
+def display_countdown(target_time):
+    while datetime.now() < target_time:
+        now = datetime.now()
+        remaining_time = target_time - now
+        hours, remainder = divmod(remaining_time.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        print(f"Time remaining: {remaining_time.days} days, {hours:02}:{minutes:02}:{seconds:02}", end="\r")
+        time.sleep(1)
+
+# Function to monitor and adjust trailing stops
+def monitor_trailing_stops(symbol, target_time):
+    pip = pip_dict[symbol]
+    trigger_price_buy = None
+    trigger_price_sell = None
+
+    while datetime.now() < target_time + timedelta(minutes=30):
+        positions = mt5.positions_get(symbol=symbol)
+        if positions:
+            for pos in positions:
+                if pos.type == mt5.ORDER_TYPE_BUY:
+                    if trigger_price_buy is None:
+                        trigger_price_buy = pos.price_open + trigger_pips * pip
+                    if mt5.symbol_info_tick(symbol).ask > trigger_price_buy:
+                        new_sl = mt5.symbol_info_tick(symbol).ask - trailing_pips * pip
+                        if new_sl > pos.sl:
+                            request = {
+                                "action": mt5.TRADE_ACTION_SLTP,
+                                "position": pos.ticket,
+                                "sl": new_sl,
+                                "tp": pos.tp
+                            }
+                            result = mt5.order_send(request)
+                            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                                print(f"Failed to modify SL for {symbol}, retcode={result.retcode}")
+                            else:
+                                print(f"Modified SL for {symbol} position {pos.ticket}")
+
+                elif pos.type == mt5.ORDER_TYPE_SELL:
+                    if trigger_price_sell is None:
+                        trigger_price_sell = pos.price_open - trigger_pips * pip
+                    if mt5.symbol_info_tick(symbol).bid < trigger_price_sell:
+                        new_sl = mt5.symbol_info_tick(symbol).bid + trailing_pips * pip
+                        if new_sl < pos.sl:
+                            request = {
+                                "action": mt5.TRADE_ACTION_SLTP,
+                                "position": pos.ticket,
+                                "sl": new_sl,
+                                "tp": pos.tp
+                            }
+                            result = mt5.order_send(request)
+                            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                                print(f"Failed to modify SL for {symbol}, retcode={result.retcode}")
+                            else:
+                                print(f"Modified SL for {symbol} position {pos.ticket}")
+
+        time.sleep(1)
+
+# Function to manage multiple timers for multiple symbols
+def manage_timers(symbols, scheduled_times):
+    for scheduled_time in scheduled_times:
+        
+        # Display the countdown timer
+        display_countdown(scheduled_time)
+
+        # Place the orders for each symbol
+        for symbol in symbols:
+            place_orders(symbol)
+
+        # Monitor and adjust trailing stops for each symbol
+        for symbol in symbols:
+            monitor_trailing_stops(symbol, scheduled_time)
+
+        # Close pending orders not taken after 3 minutes for each symbol
+        for symbol in symbols:
+            close_pending_orders(symbol, scheduled_time)
+
+# Manage multiple timers for multiple symbols
+manage_timers(symbols, scheduled_times)
+
+# Shutdown the MetaTrader 5 platform
+mt5.shutdown()

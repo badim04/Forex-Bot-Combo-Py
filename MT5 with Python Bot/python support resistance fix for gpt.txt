@@ -1,0 +1,185 @@
+In the code below
+Help me fix
+
+Okay so this is how the bot would work
+
+1. It would use the zigzag indicator
+
+2. Okay so it would use the zigzag indicator to find support and resistance levels
+
+3. To get the support levels, it would check the high points of the zigzag in the last couple of bars (300) and any highs price points that are at most 10 pips in between each other, and with at least 3 of those price points like that, now all those 3 points form one support zone/line with the average/mean of the points being one support line/zone.
+
+The vice versa for the resistance line below checking the low points of the zigzag
+
+4. Take a buy trade when the price touches the resistance line/zone and a sell when the price touches the support line/zone
+
+5. Always clear all the lines/zones and recalculate after each trade
+
+6. Take only one trade at a time
+
+
+
+
+The code below
+
+import pandas as pd
+import numpy as np
+from backtesting import Backtest, Strategy
+
+# Compute ZigZag indicator
+def zigzag(df, depth, deviation, backstep):
+    zigzag_points = []
+    last_high = last_low = None
+
+    for i in range(depth, len(df) - depth):
+        is_high = df['High'][i] == df['High'][i - depth:i + depth + 1].max()
+        is_low = df['Low'][i] == df['Low'][i - depth:i + depth + 1].min()
+
+        if is_high and (last_high is None or (i - last_high[0] > backstep)):
+            zigzag_points.append((i, df['High'][i], 'high'))
+            last_high = (i, df['High'][i])
+
+        if is_low and (last_low is None or (i - last_low[0] > backstep)):
+            zigzag_points.append((i, df['Low'][i], 'low'))
+            last_low = (i, df['Low'][i])
+
+    return zigzag_points
+
+# Identify support and resistance levels
+def identify_levels(zigzag_points, pip_tolerance=0.001):
+    supports = []
+    resistances = []
+
+    highs = [point for point in zigzag_points if point[2] == 'high']
+    lows = [point for point in zigzag_points if point[2] == 'low']
+
+    def find_zones(points, tolerance, min_points):
+        zones = []
+        i = 0
+        while i < len(points):
+            j = i + 1
+            while j < len(points) and abs(points[j][1] - points[i][1]) <= tolerance:
+                j += 1
+            if j - i >= min_points:
+                zone = [p[1] for p in points[i:j]]
+                zones.append(np.mean(zone))
+            i = j
+        return zones
+
+    supports = find_zones(lows, pip_tolerance, min_points=3)
+    resistances = find_zones(highs, pip_tolerance, min_points=3)
+
+    return supports, resistances
+
+# Backtesting with Backtesting library
+class ZigZagStrategy(Strategy):
+    depth = 12
+    deviation = 5
+    backstep = 3
+    pip_tolerance = 0.0005
+    sl_pips = 40 * 0.0001
+    tp_pips = 45 * 0.0001
+    
+    def init(self):
+        self.zigzag_points = zigzag(self.data.df, self.depth, self.deviation, self.backstep)
+        self.supports, self.resistances = identify_levels(self.zigzag_points, self.pip_tolerance)
+        print(f"Identified support levels: {self.supports}")
+        print(f"Identified resistance levels: {self.resistances}")
+
+    def next(self):
+        price = self.data.Close[-1]
+
+        # Check if the price is within a small range (tolerance) of support/resistance levels
+        if self.supports:
+            for support in self.supports:
+                if abs(price - support) < self.pip_tolerance:
+                    #print("Price near support level. Buying.")
+                    self.buy(sl=price - self.sl_pips, tp=price + self.tp_pips, size=self.dynamic_lotsize())
+
+        if self.resistances:
+            for resistance in self.resistances:
+                if abs(price - resistance) < self.pip_tolerance:
+                    #print("Price near resistance level. Selling.")
+                    self.sell(sl=price + self.sl_pips, tp=price - self.tp_pips, size=self.dynamic_lotsize())
+
+    def dynamic_lotsize(self):
+        # Calculate dynamic lot size based on account equity and risk management rules
+        return 0.1  # Example lot size, replace with your logic
+
+# Load the CSV file with correct headers
+file_path = 'GBPUSD_M30_201901020000_202406282330.csv'
+
+# Read the file and manually split the header
+with open(file_path, 'r') as file:
+    header = file.readline().strip().split('\t')
+data = pd.read_csv(file_path, delimiter='\t', skiprows=1, names=header)
+
+# Ensure the data is sorted by date
+data['Time'] = pd.to_datetime(data['<DATE>'] + ' ' + data['<TIME>'])
+data.set_index('Time', inplace=True)
+
+# Rename columns to match the expected format
+data.rename(columns={
+    '<OPEN>': 'Open',
+    '<HIGH>': 'High',
+    '<LOW>': 'Low',
+    '<CLOSE>': 'Close',
+    '<TICKVOL>': 'TickVol',
+    '<VOL>': 'Volume',
+    '<SPREAD>': 'Spread'
+}, inplace=True)
+
+# Define a wrapper function to run the backtest with specified parameters
+def run_backtest(data, **kwargs):
+    for key, value in kwargs.items():
+        setattr(ZigZagStrategy, key, value)
+        
+    bt = Backtest(data, ZigZagStrategy, cash=10000, commission=.002, exclusive_orders=True)
+    stats = bt.run()
+    return stats, bt
+
+# Run the backtest with the dynamic parameters
+stats, bt = run_backtest(data, depth=12, deviation=5, backstep=3, pip_tolerance=0.0005, sl_pips=40 * 0.0001, tp_pips=45 * 0.0001)
+print(stats)
+bt.plot(resample='8H')
+
+
+
+code 2
+
+import backtrader as bt
+import backtrader.indicators as btind
+
+class ZigZagSupportResistance(bt.Strategy):
+    params = (('zigzag_period', 12), ('num_bars', 200), ('pip_threshold', 10))
+
+    def __init__(self):
+        self.zigzag = btind.ZigZag(self.data, period=self.p.zigzag_period)
+        self.support_levels = []
+        self.resistance_levels = []
+
+    def next(self):
+        # Get high and low points of zigzag
+        highs = [x[1] for x in self.zigzag.get_points() if x[0] == 'high']
+        lows = [x[1] for x in self.zigzag.get_points() if x[0] == 'low']
+
+        # Calculate support and resistance levels
+        self.support_levels = self.calculate_support_levels(lows)
+        self.resistance_levels = self.calculate_resistance_levels(highs)
+
+        # Check for buy/sell signals
+        if self.data.close[0] in self.resistance_levels:
+            self.buy()
+        elif self.data.close[0] in self.support_levels:
+            self.sell()
+
+    def calculate_support_levels(self, lows):
+        # Implement logic to calculate support levels based on lows
+        pass
+
+    def calculate_resistance_levels(self, highs):
+        # Implement logic to calculate resistance levels based on highs
+        pass
+
+
+Modify code as needed

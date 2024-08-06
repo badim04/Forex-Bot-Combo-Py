@@ -1,0 +1,123 @@
+Forex Straddle Strategy News Trading
+
+When there are two news on the same time then just use pairs that are not affected by the news as the second pair
+
+
+USD - NFP - First Friday of every month - 13:30 - GBPUSD, USDJPY, XAUUSD
+
+CAD - Employment Change - same - 13:30 - CADJPY
+
+USD - CPI - All USD pairs - 100pips mard
+CPI dec23, both directions, was a loss, 20 pips both sides
+
+AUD - Retail Sales - All AUD pairs
+USD - Retail Sales - GBPUSD 30 pips
+
+NZD - Employment Change - All NZD pairs 
+
+GBP - GDP - 20pips - GBPUSD 
+
+USD - PPI - 30pips - GBPUSD, XAUUSD
+
+GBP - CPI - 7am - 13pips - GBPUSD pairs but slow slow
+
+NZD - interest rates - 20 pips - NZDUZSD
+
+CAD - CPI .....one direction 30pips then othen on 30m later reversal
+
+
+
+USD
+-NFP 140 pips
+-Retail Sales 80 pips
+-Trade Balance 70 pips
+-FOMC 60 pips
+-CPI 60 pips
+Pairs
+EUR/USD
+GBP/USD
+USD/JPY
+USD/CHF
+USD/CAD
+AUD/USD
+
+-Unemployment Rate of EUR/GBP
+-GDP of UK US NZD of GBP/USD n GBP/NZD
+-CPI of US PCE Index UK n AUD GBP/AUD
+-Overnight interest rate of US USD/JPY
+-NFP 
+-Jobless Claims usd 20pips down n 30 pips up
+-Core PCE usd like 13 pips down then 30 pips up
+-CPI Core CPI USD 100 pips GBPUSD
+-CPI GBP 20 pips, 10 pips GBPUSD
+
+
+
+2024 testing
+-May/June FOMC was a disaster, didnt even move or both sides
+-June NFP USD was good over 70 pips, unemployement didnt shake
+-June CPI USD over 100pips, was good
+-June PPI USD was good, 40 to 70 pips
+-June Retail Sales USD was good but realllyyyy slow, came after like 30mins
+-June PCE USD was a disaster on all pairs
+-June CPI CAD was good, 30 pips
+-July NFP, was a disaster went both ways, unemployment rate was there but more plenty up after for gold
+-July CPI, went one way very well for all both gold(went over 200 pips) hit sellstop of 20 pips before 1:30 on 1:29, so for CPI is good long even if both ways and initial jobless claim with it didnt affect it
+-July PPI,went one way but really slow and tiny, went like 70 pips in gold on 30 pips entry but later went the other way 140 pips after like 30mins......
+-July Retail Sales, slow one direction of like 30 pips on gold then went the other way like 100 pips well after like 30 minutes
+-Aug NFP really good for gbpusd alomost 90 pips n eurusd almost 90 pips too only gold was not so much, did like 200pips then fell 30mins to 1hr later by 500 pips
+
+
+
+
+
+
+
+call helen, merge ML python to the current anpa......data collection with rp, daily or weekly, social media stats, all posts n all....set alarm for thursday 2pm........acls asking....zoom meeting for thursday 2pm 88 nw
+
+
+
+
+
+Straddle with hedging
+
+So in the straddle strategy below, I want to add just one more thing
+I want to add a hedging strategy if it would trigger both buy and sell pending orders (buystop and sellstop) triggers. then when either triggers then the other one should have a lot of times 40% more than the open other one
+
+For example
+I take a buystop and sellstop of 1 lot each, if the sellstop triggers then the lot for the buystop is increased 1.4 lot now (40% more than the triggered sell) now if the direction should go back in the direction of the sell then another sell is opened at that same position of the first one but with a total of 40% more than the buy (40% more than 1.4 lot which is 1.96 lot in total), we already have 1lot open so it would be 0.96 lot for the second sell, and if it should go back the other way again then it keeps opening new trades by those two lines until a tp is hit for them all 
+
+hedging
+Okay here it is
+If first trade is a buy.....it cant be both
+First trade is a buy, lot is 0.01
+2nd trade has to be a sell, lot is 40% more than the buy(0.01) so that's 0.014 lot
+3rd trade has to be a buy, lot is 40% more than the sell(0.014) so that's 0.0196 lot but we already have 0.01 lot open so this one is (0.0196 - 0.01) which is 0.0096 lot
+4th trade has to be a sell, 40% more than buys (0.0196) that's 0.02744 but we have an open trade of 0.014 so this one's lot would be 0.02744 - 0.014 which would be 0.01344
+And so on
+
+
+1st trade - buy lot 0.01
+2nd trade - sell lot 0.014
+3rd trade - buy lot 0.0096
+4th trade - sell lot 0.01344
+and so on
+
+This is the calculation i want and need
+
+Summary of the First 10 Trades
+Buy: 0.01
+Sell: 0.014
+Buy: 0.0096
+Sell: 0.01344
+Buy: 0.018816
+Sell: 0.02634
+Buy: 0.036876
+Sell: 0.0516488
+Buy: 0.072311
+Sell: 0.1012154
+
+Total - 0.3542472
+
+
+
